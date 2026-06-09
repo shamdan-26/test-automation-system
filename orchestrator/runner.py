@@ -11,8 +11,6 @@ from input_parser.task_parser import ParserRegistry
 from models.bug_report import BugReport, BugSeverity
 from models.test_result import RunSummary, TestStatus
 from orchestrator.pipeline import build_engines, run_pipeline
-from reporters.html_reporter import HtmlReporter
-from reporters.pdf_reporter import PdfReporter
 from test_generator.generator import TestCaseGenerator
 from utils.helpers import ensure_dir, generate_run_id
 from utils.logger import get_logger
@@ -99,10 +97,14 @@ def run(
     # ── Reports ───────────────────────────────────────────────────
     rep_cfg = config.get("reporters", {})
     if rep_cfg.get("html", {}).get("enabled", True):
+        from reporters.html_reporter import HtmlReporter
+
         html_path = HtmlReporter(rep_cfg.get("html", {})).generate(summary)
         summary.report_paths["html"] = str(html_path)
 
     if rep_cfg.get("pdf", {}).get("enabled", True):
+        from reporters.pdf_reporter import PdfReporter
+
         pdf_path = PdfReporter(rep_cfg.get("pdf", {})).generate(summary)
         summary.report_paths["pdf"] = str(pdf_path)
 
