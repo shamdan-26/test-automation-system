@@ -1,0 +1,48 @@
+# Secrets — never commit
+.env
+tas_config.yml
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Test outputs
+outputs/reports/
+outputs/artifacts/
+outputs/test_cases/
+outputs/baselines/
+
+# Playwright
+test-results/
+playwright-report/
+
+# Locust
+outputs/artifacts/locustfile.py
+
+# Coverage
+.coverage
+htmlcov/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+
+# Node (for Playwright install)
+node_modules/

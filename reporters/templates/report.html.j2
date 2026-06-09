@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Test Run Report — {{ summary.run_id }}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f6fa; color: #2d3436; }
+    header { background: #2d3436; color: #fff; padding: 24px 32px; }
+    header h1 { font-size: 1.6rem; }
+    header .meta { font-size: 0.85rem; opacity: 0.7; margin-top: 4px; }
+    .container { max-width: 1100px; margin: 32px auto; padding: 0 24px; }
+
+    /* Summary cards */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 32px; }
+    .card { background: #fff; border-radius: 8px; padding: 20px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    .card .value { font-size: 2.4rem; font-weight: 700; }
+    .card .label { font-size: 0.78rem; text-transform: uppercase; letter-spacing: .05em; color: #636e72; margin-top: 4px; }
+    .card.passed .value { color: #00b894; }
+    .card.failed .value { color: #d63031; }
+    .card.total  .value { color: #0984e3; }
+    .card.bugs   .value { color: #e17055; }
+
+    /* Status badge */
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+    .badge.passed  { background: #00b89422; color: #00b894; }
+    .badge.failed  { background: #d6303122; color: #d63031; }
+    .badge.skipped { background: #fdcb6e22; color: #e17055; }
+    .badge.error   { background: #d6303122; color: #6c5ce7; }
+
+    /* Engine sections */
+    .engine-section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 24px; overflow: hidden; }
+    .engine-header { padding: 16px 24px; background: #f0f3f7; display: flex; justify-content: space-between; align-items: center; }
+    .engine-header h2 { font-size: 1rem; text-transform: uppercase; letter-spacing: .04em; }
+    .engine-stats { font-size: 0.82rem; color: #636e72; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #f8f9fd; padding: 10px 16px; text-align: left; font-size: 0.78rem; text-transform: uppercase; letter-spacing: .04em; color: #636e72; }
+    td { padding: 12px 16px; border-top: 1px solid #f0f3f7; font-size: 0.88rem; vertical-align: top; }
+    tr:hover td { background: #fafbff; }
+    .error-msg { font-family: monospace; font-size: 0.78rem; color: #d63031; white-space: pre-wrap; word-break: break-all; }
+
+    /* Performance table */
+    .perf-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; padding: 20px 24px; }
+    .perf-stat { text-align: center; }
+    .perf-stat .val { font-size: 1.4rem; font-weight: 600; }
+    .perf-stat .lbl { font-size: 0.72rem; color: #636e72; text-transform: uppercase; }
+
+    footer { text-align: center; padding: 24px; font-size: 0.78rem; color: #b2bec3; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Test Run Report</h1>
+  <div class="meta">
+    Run ID: {{ summary.run_id }} &nbsp;|&nbsp;
+    Environment: {{ summary.environment }} &nbsp;|&nbsp;
+    Branch: {{ summary.git_branch }} ({{ summary.git_commit[:7] if summary.git_commit else 'N/A' }}) &nbsp;|&nbsp;
+    Triggered by: {{ summary.triggered_by }} &nbsp;|&nbsp;
+    {{ summary.started_at.strftime('%Y-%m-%d %H:%M UTC') }}
+  </div>
+</header>
+
+<div class="container">
+  <!-- Overall summary cards -->
+  <div class="cards">
+    <div class="card total">
+      <div class="value">{{ summary.total_tests }}</div>
+      <div class="label">Total Tests</div>
+    </div>
+    <div class="card passed">
+      <div class="value">{{ summary.total_passed }}</div>
+      <div class="label">Passed</div>
+    </div>
+    <div class="card failed">
+      <div class="value">{{ summary.total_failed }}</div>
+      <div class="label">Failed</div>
+    </div>
+    <div class="card bugs">
+      <div class="value">{{ summary.bugs_submitted }}</div>
+      <div class="label">Bugs Filed</div>
+    </div>
+    <div class="card {{ 'passed' if summary.overall_status.value == 'passed' else 'failed' }}">
+      <div class="value">{{ summary.overall_status.value.upper() }}</div>
+      <div class="label">Overall</div>
+    </div>
+  </div>
+
+  <!-- Per-engine sections -->
+  {% for report in summary.engine_reports %}
+  <div class="engine-section">
+    <div class="engine-header">
+      <h2>{{ report.engine | upper }}</h2>
+      <span class="engine-stats">
+        {{ report.passed }}/{{ report.total }} passed &nbsp;|&nbsp;
+        {{ "%.1f"|format(report.pass_rate) }}% &nbsp;|&nbsp;
+        {{ "%.1f"|format(report.duration_s) }}s
+      </span>
+    </div>
+
+    {% if report.performance_stats %}
+    <div class="perf-grid">
+      <div class="perf-stat"><div class="val">{{ report.performance_stats.total_requests }}</div><div class="lbl">Requests</div></div>
+      <div class="perf-stat"><div class="val">{{ "%.0f"|format(report.performance_stats.avg_response_time_ms) }}ms</div><div class="lbl">Avg RT</div></div>
+      <div class="perf-stat"><div class="val">{{ "%.0f"|format(report.performance_stats.p95_ms) }}ms</div><div class="lbl">P95</div></div>
+      <div class="perf-stat"><div class="val">{{ "%.0f"|format(report.performance_stats.p99_ms) }}ms</div><div class="lbl">P99</div></div>
+      <div class="perf-stat"><div class="val">{{ "%.1f"|format(report.performance_stats.requests_per_second) }}</div><div class="lbl">RPS</div></div>
+      <div class="perf-stat"><div class="val">{{ "%.2f%%"|format(report.performance_stats.error_rate * 100) }}</div><div class="lbl">Error Rate</div></div>
+    </div>
+    {% endif %}
+
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Test Case</th>
+          <th>Status</th>
+          <th>Duration</th>
+          <th>Error</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for result in report.results %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td><strong>{{ result.title }}</strong><br><small style="color:#b2bec3">{{ result.test_case_id }}</small></td>
+          <td><span class="badge {{ result.status.value }}">{{ result.status.value }}</span></td>
+          <td>{{ "%.0f"|format(result.duration_ms) }}ms</td>
+          <td>
+            {% if result.error_message %}
+            <div class="error-msg">{{ result.error_message }}</div>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endfor %}
+</div>
+<footer>Generated by test-automation-system &mdash; {{ summary.started_at.strftime('%Y-%m-%d') }}</footer>
+</body>
+</html>

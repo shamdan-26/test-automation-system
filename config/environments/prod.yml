@@ -1,0 +1,30 @@
+environment: prod
+
+api:
+  base_url: "https://api.example.com"
+  soap_wsdl: "https://api.example.com/ws?wsdl"
+
+engines:
+  ui:
+    base_url: "https://example.com"
+    headless: true
+  performance:
+    host: "https://api.example.com"
+    users: 50
+    duration: 300
+    thresholds:
+      response_time_p95: 1000  # stricter SLA in prod
+      error_rate: 0.001
+
+integrations:
+  jira:
+    auto_submit: true
+    priority: High
+  github:
+    post_commit_status: true
+
+notifications:
+  email:
+    enabled: true
+    on_failure: true
+    on_success: true

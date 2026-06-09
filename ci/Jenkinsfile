@@ -1,0 +1,239 @@
+// Declarative Jenkins Pipeline — Test Automation System
+// Triggers: nightly cron + manual parameterized run
+// All secrets stored in Jenkins Credentials Store — nothing hardcoded here
+
+pipeline {
+
+    agent any
+
+    // ── Cron + manual trigger ──────────────────────────────────────
+    triggers {
+        cron('H 2 * * *')   // nightly at ~2 AM
+    }
+
+    // ── Runtime parameters (shown when "Build with Parameters" is used) ──
+    parameters {
+        string(name: 'CONFIG_PATH',   defaultValue: 'tas_config.yml', description: 'Path to tas_config.yml relative to workspace root')
+        string(name: 'INPUT_DIR',     defaultValue: 'inputs',         description: 'Directory containing input files (stories, tasks, docs)')
+        string(name: 'ENVIRONMENT',   defaultValue: 'staging',        description: 'Target environment: dev | staging | prod')
+        string(name: 'ENGINES',       defaultValue: '',               description: 'Comma-separated engines to run (blank = all enabled in config)')
+        booleanParam(name: 'SUBMIT_BUGS',   defaultValue: true,  description: 'Auto-submit Jira bugs for failures?')
+        booleanParam(name: 'SEND_EMAIL',    defaultValue: true,  description: 'Send email notification after run?')
+        booleanParam(name: 'UPDATE_BASELINE', defaultValue: false, description: 'Promote passing results to regression baseline?')
+    }
+
+    environment {
+        PYTHON_BIN       = 'python3'
+        PIP_BIN          = 'pip3'
+        VENV_DIR         = "${WORKSPACE}/.venv"
+        REPORTS_DIR      = "${WORKSPACE}/outputs/reports"
+        ARTIFACTS_DIR    = "${WORKSPACE}/outputs/artifacts"
+        // Credentials resolved from Jenkins Credentials Store at runtime
+        JIRA_SERVER      = credentials('jira-server-url')
+        JIRA_USER        = credentials('jira-username')
+        JIRA_TOKEN       = credentials('jira-api-token')
+        GITHUB_TOKEN     = credentials('github-token')
+        SMTP_PASSWORD    = credentials('smtp-password')
+    }
+
+    options {
+        timeout(time: 90, unit: 'MINUTES')
+        timestamps()
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '30', artifactNumToKeepStr: '10'))
+    }
+
+    stages {
+
+        // ── Stage 1: Checkout ──────────────────────────────────────
+        stage('Checkout') {
+            steps {
+                checkout scm
+                script {
+                    env.GIT_COMMIT_SHORT = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                    env.GIT_BRANCH_NAME  = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
+                }
+                echo "Branch: ${env.GIT_BRANCH_NAME} | Commit: ${env.GIT_COMMIT_SHORT}"
+            }
+        }
+
+        // ── Stage 2: Environment setup ─────────────────────────────
+        stage('Setup') {
+            steps {
+                sh """
+                    ${PYTHON_BIN} -m venv ${VENV_DIR}
+                    . ${VENV_DIR}/bin/activate
+                    ${PIP_BIN} install --upgrade pip
+                    ${PIP_BIN} install -r requirements.txt
+                    playwright install --with-deps chromium
+                """
+            }
+        }
+
+        // ── Stage 3: Generate test cases ───────────────────────────
+        stage('Generate Test Cases') {
+            steps {
+                sh """
+                    . ${VENV_DIR}/bin/activate
+                    tas generate \
+                        --config ${params.CONFIG_PATH} \
+                        \$(find ${params.INPUT_DIR} -type f | sed 's/^/--input /' | tr '\\n' ' ')
+                """
+            }
+        }
+
+        // ── Stage 4: Tests — run engines in parallel ────────────────
+        stage('Tests') {
+            parallel {
+                stage('API Tests') {
+                    when { expression { params.ENGINES == '' || params.ENGINES.contains('api_rest') || params.ENGINES.contains('api_soap') } }
+                    steps {
+                        sh """
+                            . ${VENV_DIR}/bin/activate
+                            tas run \
+                                --config ${params.CONFIG_PATH} \
+                                --engine api_rest --engine api_soap \
+                                --triggered-by jenkins
+                        """
+                    }
+                    post {
+                        always { junit allowEmptyResults: true, testResults: 'outputs/reports/junit/api_*.xml' }
+                    }
+                }
+
+                stage('UI Tests') {
+                    when { expression { params.ENGINES == '' || params.ENGINES.contains('ui') } }
+                    steps {
+                        sh """
+                            . ${VENV_DIR}/bin/activate
+                            tas run \
+                                --config ${params.CONFIG_PATH} \
+                                --engine ui \
+                                --triggered-by jenkins
+                        """
+                    }
+                    post {
+                        always {
+                            junit allowEmptyResults: true, testResults: 'outputs/reports/junit/ui_*.xml'
+                            archiveArtifacts allowEmptyArchive: true, artifacts: 'outputs/artifacts/videos/**'
+                        }
+                    }
+                }
+
+                stage('Performance Tests') {
+                    when { expression { params.ENGINES == '' || params.ENGINES.contains('performance') } }
+                    steps {
+                        sh """
+                            . ${VENV_DIR}/bin/activate
+                            tas run \
+                                --config ${params.CONFIG_PATH} \
+                                --engine performance \
+                                --triggered-by jenkins
+                        """
+                    }
+                }
+
+                stage('Mobile Tests') {
+                    when { expression { params.ENGINES.contains('mobile') } }
+                    steps {
+                        sh """
+                            . ${VENV_DIR}/bin/activate
+                            tas run \
+                                --config ${params.CONFIG_PATH} \
+                                --engine mobile \
+                                --triggered-by jenkins
+                        """
+                    }
+                }
+            }
+        }
+
+        // ── Stage 5: Regression check ──────────────────────────────
+        stage('Regression') {
+            when { expression { params.ENGINES == '' || params.ENGINES.contains('regression') } }
+            steps {
+                sh """
+                    . ${VENV_DIR}/bin/activate
+                    tas run \
+                        --config ${params.CONFIG_PATH} \
+                        --engine regression \
+                        --triggered-by jenkins
+                """
+            }
+        }
+
+        // ── Stage 6: Submit bugs to Jira ───────────────────────────
+        stage('Submit Bugs') {
+            when { expression { return params.SUBMIT_BUGS } }
+            environment {
+                JIRA_SERVER  = "${env.JIRA_SERVER}"
+                JIRA_USER    = "${env.JIRA_USER}"
+                JIRA_TOKEN   = "${env.JIRA_TOKEN}"
+            }
+            steps {
+                echo 'Bug submission handled automatically by the runner via Jira integration.'
+            }
+        }
+
+        // ── Stage 7: Post to GitHub ────────────────────────────────
+        stage('GitHub Status') {
+            environment {
+                GITHUB_TOKEN = "${env.GITHUB_TOKEN}"
+            }
+            steps {
+                echo 'GitHub commit status posted automatically by the runner.'
+            }
+        }
+
+        // ── Stage 8: Publish reports ───────────────────────────────
+        stage('Publish Reports') {
+            steps {
+                publishHTML(target: [
+                    reportDir   : 'outputs/reports/html',
+                    reportFiles : 'report_*.html',
+                    reportName  : 'Test Report',
+                    keepAll     : true,
+                    allowMissing: true,
+                ])
+                archiveArtifacts allowEmptyArchive: true, artifacts: 'outputs/reports/pdf/*.pdf, outputs/artifacts/run.log'
+            }
+        }
+    }
+
+    // ── Post-build ─────────────────────────────────────────────────
+    post {
+        failure {
+            script {
+                if (params.SEND_EMAIL) {
+                    emailext(
+                        subject: "[FAILED] TAS Run ${env.BUILD_NUMBER} — ${env.GIT_BRANCH_NAME}",
+                        body: """
+                            Test run <b>FAILED</b><br>
+                            Branch: ${env.GIT_BRANCH_NAME}<br>
+                            Commit: ${env.GIT_COMMIT_SHORT}<br>
+                            Environment: ${params.ENVIRONMENT}<br>
+                            <a href="${env.BUILD_URL}">View build</a>
+                        """,
+                        mimeType: 'text/html',
+                        recipientProviders: [[$class: 'DevelopersRecipientProvider']],
+                    )
+                }
+            }
+        }
+        success {
+            script {
+                if (params.SEND_EMAIL) {
+                    emailext(
+                        subject: "[PASSED] TAS Run ${env.BUILD_NUMBER} — ${env.GIT_BRANCH_NAME}",
+                        body: "All tests passed. <a href='${env.BUILD_URL}'>View report</a>",
+                        mimeType: 'text/html',
+                        recipientProviders: [[$class: 'DevelopersRecipientProvider']],
+                    )
+                }
+            }
+        }
+        always {
+            cleanWs(cleanWhenAborted: true, cleanWhenFailure: false)
+        }
+    }
+}

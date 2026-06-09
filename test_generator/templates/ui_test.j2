@@ -1,0 +1,34 @@
+# Auto-generated UI test cases
+# Source: {{ source }}  |  Generated: {{ generated_at }}
+
+test_cases:
+{% for tc in test_cases %}
+  - id: {{ tc.id }}
+    title: "{{ tc.title }}"
+    description: "{{ tc.description }}"
+    type: ui
+    priority: {{ tc.priority }}
+    tags: {{ tc.tags | tojson }}
+    story_id: "{{ tc.story_id }}"
+
+    ui:
+      url: "{{ tc.url }}"
+      steps:
+        {% for step in tc.steps %}
+        - order: {{ step.order }}
+          description: "{{ step.description }}"
+          action: {{ step.action }}
+          expected_result: "{{ step.expected_result }}"
+          {% if step.data %}
+          data:
+            {% for k, v in step.data.items() %}
+            {{ k }}: {{ v | tojson }}
+            {% endfor %}
+          {% endif %}
+        {% endfor %}
+      assertions:
+        {% for assertion in tc.assertions %}
+        - "{{ assertion }}"
+        {% endfor %}
+
+{% endfor %}

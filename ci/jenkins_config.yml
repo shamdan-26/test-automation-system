@@ -1,0 +1,44 @@
+# Jenkins pipeline structural configuration
+# All environment-specific values (URLs, credentials, paths) are entered at
+# runtime via the Jenkins parameterized build form or Jenkins Credentials Store.
+# Nothing environment-specific is stored here.
+
+pipeline:
+  name: test-automation-system
+
+  # Agent label — leave blank to run on any available agent
+  node_label: ""
+
+  # Nightly trigger (operator adjusts in Jenkins UI if needed)
+  cron_schedule: "H 2 * * *"
+
+  # Hard timeout — Jenkins aborts the build if it exceeds this
+  timeout_minutes: 90
+
+  # Artifact retention
+  artifacts:
+    keep_builds: 30
+    keep_artifact_builds: 10
+    paths:
+      - outputs/reports/pdf/*.pdf
+      - outputs/artifacts/run.log
+      - outputs/artifacts/videos/**
+
+  # HTML publisher plugin settings
+  html_report:
+    report_dir: outputs/reports/html
+    report_files: "report_*.html"
+    report_name: Test Report
+
+  # Jenkins Credentials Store IDs — operator creates these in Jenkins UI
+  # Manage Jenkins > Credentials > System > Global > Add Credential
+  credential_ids:
+    jira_server_url: jira-server-url
+    jira_username:   jira-username
+    jira_api_token:  jira-api-token
+    github_token:    github-token
+    smtp_password:   smtp-password
+
+  # Python interpreter available on the agent
+  python_bin: python3
+  pip_bin:    pip3

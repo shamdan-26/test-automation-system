@@ -1,0 +1,88 @@
+system:
+  name: test-automation-system
+  version: "1.0.0"
+  output_dir: outputs
+  log_level: INFO
+  parallel: true
+
+engines:
+  api:
+    enabled: true
+    timeout: 30
+    retry_count: 3
+    retry_delay: 2
+    parallel_workers: 4
+    validate_schema: true
+  ui:
+    enabled: true
+    browser: chromium           # chromium | firefox | webkit
+    headless: true
+    timeout: 30000
+    video: "on-failure"         # always | on-failure | off
+    screenshot: "on-failure"   # always | on-failure | off
+    trace: "on-failure"
+    base_url: ""
+  mobile:
+    enabled: false
+    platform: android           # android | ios
+    platform_version: "13.0"
+    device_name: "Android Emulator"
+    app_path: ""
+    appium_server: "http://localhost:4723"
+    timeout: 60
+  performance:
+    enabled: true
+    host: ""
+    duration: 60
+    users: 10
+    spawn_rate: 2
+    thresholds:
+      response_time_p95: 2000   # ms
+      error_rate: 0.01          # 1%
+      requests_per_second: 50
+  regression:
+    enabled: true
+    baseline_dir: outputs/baselines
+    diff_threshold: 0.05        # 5% tolerance
+
+reporters:
+  html:
+    enabled: true
+    output_dir: outputs/reports/html
+    open_on_finish: false
+  pdf:
+    enabled: true
+    output_dir: outputs/reports/pdf
+  allure:
+    enabled: true
+    results_dir: outputs/reports/allure/results
+    report_dir: outputs/reports/allure/report
+
+integrations:
+  jira:
+    enabled: false
+    server_url: ""
+    project_key: ""
+    issue_type: Bug
+    priority: Medium
+    auto_submit: false
+    attach_screenshots: true
+    attach_logs: true
+    labels:
+      - automated
+      - regression
+  github:
+    enabled: false
+    post_commit_status: true
+    create_issues: false
+
+notifications:
+  email:
+    enabled: false
+    smtp_host: ""
+    smtp_port: 587
+    use_tls: true
+    from_address: ""
+    to_addresses: []
+    on_failure: true
+    on_success: false

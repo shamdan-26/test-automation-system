@@ -1,0 +1,51 @@
+# Auto-generated REST API test cases
+# Source: {{ source }}  |  Generated: {{ generated_at }}
+
+test_cases:
+{% for tc in test_cases %}
+  - id: {{ tc.id }}
+    title: "{{ tc.title }}"
+    description: "{{ tc.description }}"
+    type: api_rest
+    priority: {{ tc.priority }}
+    tags: {{ tc.tags | tojson }}
+    story_id: "{{ tc.story_id }}"
+
+    api:
+      method: {{ tc.method | upper }}
+      endpoint: "{{ tc.endpoint }}"
+      expected_status: {{ tc.expected_status }}
+      {% if tc.headers %}
+      headers:
+        {% for k, v in tc.headers.items() %}
+        {{ k }}: "{{ v }}"
+        {% endfor %}
+      {% endif %}
+      {% if tc.query_params %}
+      query_params:
+        {% for k, v in tc.query_params.items() %}
+        {{ k }}: "{{ v }}"
+        {% endfor %}
+      {% endif %}
+      {% if tc.body %}
+      body:
+        {% for k, v in tc.body.items() %}
+        {{ k }}: {{ v | tojson }}
+        {% endfor %}
+      {% endif %}
+      {% if tc.expected_fields %}
+      expected_fields:
+        {% for k, v in tc.expected_fields.items() %}
+        {{ k }}: {{ v | tojson }}
+        {% endfor %}
+      {% endif %}
+
+    steps:
+      {% for step in tc.steps %}
+      - order: {{ step.order }}
+        description: "{{ step.description }}"
+        action: "{{ step.action }}"
+        expected_result: "{{ step.expected_result }}"
+      {% endfor %}
+
+{% endfor %}

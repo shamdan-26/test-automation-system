@@ -1,0 +1,19 @@
+Feature: {{ feature_title }}
+  {{ feature_description }}
+
+  Background:
+    Given the system is running in "{{ environment }}" environment
+    {% for precondition in preconditions %}
+    And {{ precondition }}
+    {% endfor %}
+
+{% for scenario in scenarios %}
+  @{{ scenario.type }}{% for tag in scenario.tags %} @{{ tag }}{% endfor %}
+
+  Scenario: {{ scenario.title }}
+    {% for step in scenario.steps %}
+    {{ step.keyword }} {{ step.description }}
+    {% endfor %}
+    Then the result should be: {{ scenario.expected_result }}
+
+{% endfor %}

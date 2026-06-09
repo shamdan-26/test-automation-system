@@ -1,0 +1,18 @@
+environment: dev
+
+api:
+  base_url: "http://localhost:8080"
+  soap_wsdl: "http://localhost:8080/ws?wsdl"
+
+engines:
+  ui:
+    base_url: "http://localhost:3000"
+    headless: false             # visible browser in dev
+  performance:
+    host: "http://localhost:8080"
+    users: 2
+    duration: 30
+
+integrations:
+  jira:
+    auto_submit: false          # never auto-create bugs in dev

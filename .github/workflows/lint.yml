@@ -1,0 +1,33 @@
+name: Lint & Type-check
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dev dependencies
+        run: pip install black isort ruff mypy types-PyYAML types-requests pydantic>=2.5
+
+      - name: black
+        run: black --check .
+
+      - name: isort
+        run: isort --check-only --profile=black .
+
+      - name: ruff
+        run: ruff check .
+
+      - name: mypy
+        run: mypy orchestrator models engines integrations reporters test_generator input_parser utils --ignore-missing-imports

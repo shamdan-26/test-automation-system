@@ -1,0 +1,20 @@
+environment: staging
+
+api:
+  base_url: "https://api.staging.example.com"
+  soap_wsdl: "https://api.staging.example.com/ws?wsdl"
+
+engines:
+  ui:
+    base_url: "https://staging.example.com"
+    headless: true
+  performance:
+    host: "https://api.staging.example.com"
+    users: 20
+    duration: 120
+
+integrations:
+  jira:
+    auto_submit: true
+  github:
+    post_commit_status: true
