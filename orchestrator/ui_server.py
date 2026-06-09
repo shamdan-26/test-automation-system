@@ -46,7 +46,7 @@ def _engine_options(config: dict[str, Any] | None) -> list[dict[str, Any]]:
 
 @app.route("/", methods=["GET", "POST"])
 def index() -> str:
-    config_path = Path(request.form.get("config_path") or request.args.get("config_path") or app.config.get("DEFAULT_CONFIG_PATH", "tas_config.yml"))
+    config_path = Path(app.config.get("DEFAULT_CONFIG_PATH", "tas_config.yml"))
     action = request.form.get("action")
     inputs_value = request.form.get("input_paths", "")
     selected_engines = request.form.getlist("engines")
@@ -77,7 +77,6 @@ def index() -> str:
     engine_options = _engine_options(config)
     return render_template(
         "ui.html",
-        config_path=str(config_path),
         config_text=config_text,
         engine_options=engine_options,
         selected_engines=selected_engines,
