@@ -60,6 +60,17 @@ def generate(config: Path, inputs: tuple[Path, ...]) -> None:
     from input_parser.task_parser import ParserRegistry
     from test_generator.generator import TestCaseGenerator
 
+
+@main.command()
+@click.option("--config", "-c", type=click.Path(path_type=Path), default=Path("tas_config.yml"), show_default=True, help="Path to tas_config.yml")
+@click.option("--host", default="127.0.0.1", show_default=True, help="Host interface for the web UI")
+@click.option("--port", default=5000, show_default=True, help="Port for the web UI")
+def web(config: Path, host: str, port: int) -> None:
+    """Start the browser-based UI for the test automation platform."""
+    from orchestrator.ui_server import start_ui
+
+    start_ui(config_path=config, host=host, port=port)
+
     cfg = _load(config)
     output_dir = Path(cfg["system"]["output_dir"]) / "test_cases"
     registry = ParserRegistry()

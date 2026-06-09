@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Test Automation System UI</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 0; padding: 32px; background: #f6f8fa; color: #202124; }
+      h1, h2 { margin-top: 0; }
+      .container { max-width: 960px; margin: auto; background: #fff; padding: 24px; border-radius: 12px; box-shadow: 0 16px 24px rgba(0,0,0,0.08); }
+      label { display: block; margin-bottom: 12px; }
+      input[type=text], textarea { width: 100%; padding: 10px; border: 1px solid #c1c7d0; border-radius: 6px; }
+      textarea { min-height: 240px; font-family: monospace; }
+      .inline { display: inline-flex; align-items: center; margin-right: 16px; }
+      .small { font-size: 0.9rem; color: #555; }
+      .actions { margin-top: 20px; }
+      button { background: #2563eb; border: none; color: white; padding: 12px 18px; border-radius: 8px; font-size: 1rem; cursor: pointer; }
+      button:hover { background: #1d4ed8; }
+      .message { padding: 14px 18px; border-radius: 8px; margin-bottom: 18px; }
+      .message.error { background: #fee2e2; color: #991b1b; }
+      .message.success { background: #d1fae5; color: #0f5132; }
+      table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+      th, td { padding: 10px 12px; border: 1px solid #e2e8f0; text-align: left; }
+      th { background: #f8fafc; }
+      .report-path { word-break: break-all; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Test Automation System</h1>
+      <p class="small">Use this UI to load a configuration file, choose engines, optionally specify input paths, and run the test pipeline.</p>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="message {{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+      {% endwith %}
+
+      <form method="post">
+        <label>
+          Config file path:
+          <input type="text" name="config_path" value="{{ config_path }}" />
+        </label>
+
+        <label>
+          Optional input files (comma-separated):
+          <input type="text" name="input_paths" value="{{ inputs_value }}" placeholder="tests/example.yml, tests/other.yml" />
+        </label>
+
+        <div>
+          <strong>Engine selection</strong>
+          <div style="margin: 12px 0;">
+            {% for engine in engine_options %}
+              <label class="inline">
+                <input type="checkbox" name="engines" value="{{ engine.name }}" {% if engine.name in selected_engines or engine.enabled and selected_engines == [] %}checked{% endif %} />
+                {{ engine.name.replace('_', ' ').title() }}
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="actions">
+          <button type="submit" name="action" value="run">Run Tests</button>
+        </div>
+      </form>
+
+      <h2>Loaded configuration</h2>
+      <textarea readonly>{{ config_text }}</textarea>
+
+      {% if summary %}
+        <h2>Run Summary</h2>
+        <p><strong>Status:</strong> {{ summary.overall_status.value | upper }}</p>
+        <p><strong>Run ID:</strong> {{ summary.run_id }}</p>
+        <p><strong>Branch:</strong> {{ summary.git_branch }}</p>
+        <p><strong>Bugs submitted:</strong> {{ summary.bugs_submitted }}</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Engine</th>
+              <th>Total</th>
+              <th>Passed</th>
+              <th>Failed</th>
+              <th>Pass Rate</th>
+              <th>Duration</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for report in summary.engine_reports %}
+              <tr>
+                <td>{{ report.engine }}</td>
+                <td>{{ report.total }}</td>
+                <td>{{ report.passed }}</td>
+                <td>{{ report.failed }}</td>
+                <td>{{ "{:.1f}%" | format(report.pass_rate) }}</td>
+                <td>{{ "{:.1f}s" | format(report.duration_s) }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        {% if summary.report_paths %}
+          <h3>Reports</h3>
+          <ul>
+            {% for label, path in summary.report_paths.items() %}
+              <li class="report-path"><strong>{{ label | upper }}:</strong> {{ path }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endif %}
+    </div>
+  </body>
+</html>
